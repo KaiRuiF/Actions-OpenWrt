@@ -107,7 +107,7 @@ jobs:
           fi
 
           # Set KERNEL_PATCHVER in Makefile
-          sed -i 's/KERNEL_PATCHVER:=.*/KERNEL_PATCHVER:=${{ env.KERNEL_VERSION }}/g' openwrt/target/linux/rockchip/Makefile
+          sed -i 's/KERNEL_PATCHVER:=.*/KERNEL_PATCHVER:=${{ env.KERNEL_VERSION }}/g' target/linux/rockchip/Makefile
 
       - name: Load custom feeds and update packages
         run: |
