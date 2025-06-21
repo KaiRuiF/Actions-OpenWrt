@@ -3,6 +3,11 @@ name: Lede Builder
 on:
   repository_dispatch:
   workflow_dispatch:
+    inputs:
+      kernel_version:
+        description: 'Kernel version to build (e.g., 5.10, 6.1)'
+        required: true
+        default: '5.15'
   schedule:
     - cron: '0 0 1 * *'
 
@@ -38,7 +43,6 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        KERNEL_VERSION: ['5.15', 'latest']
         FREQUENCY: ['1.5', '1.6']
         SET: ['docker', 'non-docker']
 
@@ -50,7 +54,7 @@ jobs:
 
     - name: Set environment variables
       run: |
-        echo "KERNEL_VERSION=${{ matrix.KERNEL_VERSION }}" >> $GITHUB_ENV
+        echo "KERNEL_VERSION=${{ github.event.inputs.kernel_version || '5.15' }}" >> $GITHUB_ENV
         echo "FREQUENCY=${{ matrix.FREQUENCY }}" >> $GITHUB_ENV
         echo "SET=${{ matrix.SET }}" >> $GITHUB_ENV
 
@@ -89,9 +93,9 @@ jobs:
           cp -rf lede/rockchip/files/arch/arm64/boot/dts/rockchip/. openwrt/target/linux/rockchip/files/arch/arm64/boot/dts/rockchip
           rm -rf openwrt/target/linux/rockchip/patches-5.15
           cp -rf lede/rockchip/patches-5.15/. openwrt/target/linux/rockchip/patches-5.15
-          sed -i 's/KERNEL_PATCHVER:=.*/KERNEL_PATCHVER:=5.15/g' openwrt/target/linux/rockchip/Makefile
         fi
 
+        # Apply patches for any kernel version
         if [ -d "$PATCHES_DIR" ]; then
           echo "Applying custom patches from $PATCHES_DIR..."
           if [ "${{ env.FREQUENCY }}" == "1.6" ]; then
@@ -102,13 +106,15 @@ jobs:
           cd openwrt && git apply --ignore-whitespace patches/*.patch && rm -rf patches
         fi
 
+        # Set KERNEL_PATCHVER in Makefile
+        sed -i 's/KERNEL_PATCHVER:=.*/KERNEL_PATCHVER:=${{ env.KERNEL_VERSION }}/g' openwrt/target/linux/rockchip/Makefile
+
     - name: Load custom feeds and update packages
       run: |
         if [ -e $FEEDS_CONF ]; then
           echo "Using custom feeds configuration from $FEEDS_CONF..."
           mv $FEEDS_CONF openwrt/feeds.conf.default
         fi
-
         chmod +x $DIY_P1_SH
         cd openwrt && $GITHUB_WORKSPACE/$DIY_P1_SH
         ./scripts/feeds update -a
@@ -129,9 +135,14 @@ jobs:
           cp $CONFIG_FILE openwrt/.config
         fi
 
+        # Configure kernel version in .config
+        echo "Configuring kernel version ${{ env.KERNEL_VERSION }}..."
+        echo "CONFIG_LINUX_${{ env.KERNEL_VERSION | replace('.', '_') }}=y" >> openwrt/.config
+        echo "# CONFIG_LINUX_6_12 is not set" >> openwrt/.config
+        echo "CONFIG_HAS_TESTING_KERNEL=n" >> openwrt/.config
+
         if [ "${{ env.FREQUENCY }}" == "1.5" ]; then
           echo "Applying frequency-specific configuration for 1.5..."
-          # sed -i '/^CONFIG_TARGET_MULTI_PROFILE=y/d' openwrt/.config
           sed -i '/^CONFIG_TARGET_rockchip_armv8_/ { /_xunlong_orangepi-r1-plus-lts/!d; }' openwrt/.config
           sed -i '/^CONFIG_TARGET_DEVICE_rockchip_armv8_/ { /_xunlong_orangepi-r1-plus-lts/!d; }' openwrt/.config
         fi
@@ -146,13 +157,7 @@ jobs:
           echo "Enabling Docker support in the configuration..."
           echo "CONFIG_PACKAGE_luci-app-dockerman=y" >> .config
         fi
-
-        cat .config
-
         make defconfig
-
-        cat .config
-
         make download -j8
         find dl -size -1024c -exec rm -f {} \;
 
@@ -175,8 +180,6 @@ jobs:
         echo "Organizing firmware files..."
         cd openwrt/bin/targets/*/*
         rm -rf packages
-        #rm -rf *.buildinfo 
-        #rm -rf *.json 
         rm -rf *.manifest
         ls
 
@@ -226,4 +229,4 @@ jobs:
           delete_tags: true
           delete_tag_pattern: Lede-Rockchip
         env:
-         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
