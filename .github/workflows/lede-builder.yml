@@ -137,7 +137,8 @@ jobs:
 
         # Configure kernel version in .config
         echo "Configuring kernel version ${{ env.KERNEL_VERSION }}..."
-        echo "CONFIG_LINUX_${{ env.KERNEL_VERSION | replace('.', '_') }}=y" >> openwrt/.config
+        KERNEL_CONFIG=$(echo "${{ env.KERNEL_VERSION }}" | sed 's/\./_/g')
+        echo "CONFIG_LINUX_${KERNEL_CONFIG}=y" >> openwrt/.config
         echo "# CONFIG_LINUX_6_12 is not set" >> openwrt/.config
         echo "CONFIG_HAS_TESTING_KERNEL=n" >> openwrt/.config
 
