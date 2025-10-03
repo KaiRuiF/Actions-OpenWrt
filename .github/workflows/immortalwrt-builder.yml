@@ -15,12 +15,21 @@ name: Immortalwrt Builder
 on:
   repository_dispatch:
   workflow_dispatch:
+    inputs:
+      branch_version:
+        description: '选择 ImmortalWrt 分支版本'
+        required: true
+        type: choice
+        options:
+          - "24.10"
+          - "23.05"
+          - "21.02"
+        default: '24.10'
   schedule:
     - cron: '0 16 1 * *'
 
 env:
   REPO_URL: https://github.com/immortalwrt/immortalwrt
-  REPO_BRANCH: openwrt-24.10
   FEEDS_CONF: feeds.conf.default
   CONFIG_FILE: immortalwrt.config
   DIY_P1_SH: scripts/diy-part1.sh
@@ -55,14 +64,16 @@ jobs:
         working-directory: /workdir
         run: |
           df -hT $PWD
-          git clone ${{ env.REPO_URL }} -b ${{ env.REPO_BRANCH }} openwrt
+          BRANCH_VERSION="${{ github.event.inputs.branch_version || '24.10' }}"
+          git clone ${{ env.REPO_URL }} -b "openwrt-${BRANCH_VERSION}" openwrt
           ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
+          echo "BRANCH_VERSION=${BRANCH_VERSION}" >> $GITHUB_ENV
 
       - name: Cache
         uses: klever1988/cachewrtbuild@main
         with:
           ccache: 'true'
-          mixkey: 'armv8_immortalwrt'
+          mixkey: 'armv8_immortalwrt-${{ env.BRANCH_VERSION }}'
           prefix: ${{ github.workspace }}/openwrt
 
       - name: Load custom feeds
@@ -125,10 +136,11 @@ jobs:
           cd openwrt
           OPENWRT_VERSION=$(make -s version | awk '{print $2}')
           cd ../..
-          echo "release_tag=immortalwrt-${OPENWRT_VERSION}-$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_OUTPUT
+          BRANCH_VERSION="${{ env.BRANCH_VERSION }}"
+          echo "release_tag=immortalwrt-${BRANCH_VERSION}-${OPENWRT_VERSION}-$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_OUTPUT
           touch release.txt
           echo -e "✅ orangepi-r1-plus-lts" >> release.txt
-          echo -e "🍀 ImmortalWrt 版本: ${OPENWRT_VERSION}" >> release.txt
+          echo -e "🍀 ImmortalWrt 版本: ${OPENWRT_VERSION} (分支: ${BRANCH_VERSION})" >> release.txt
           echo -e "🍃 cpu频率:1.5G" >> release.txt
           echo "status=success" >> $GITHUB_OUTPUT
 
