@@ -20,7 +20,7 @@ on:
 
 env:
   REPO_URL: https://github.com/immortalwrt/immortalwrt
-  REPO_BRANCH: openwrt-23.05
+  REPO_BRANCH: openwrt-24.10.3
   FEEDS_CONF: feeds.conf.default
   CONFIG_FILE: immortalwrt.config
   DIY_P1_SH: scripts/diy-part1.sh
@@ -64,17 +64,6 @@ jobs:
           ccache: 'true'
           mixkey: 'armv8_immortalwrt'
           prefix: ${{ github.workspace }}/openwrt
-
-      - name: Patch
-        run: |
-          cp 999-rk3328-orangepi-r1-plus-lts.patch openwrt/target/linux/rockchip/patches-5.15/999-rk3328-orangepi-r1-plus-lts.patch
-          if [ -e "${{ env.PATCHES_DIR }}" ]; then
-              rm -f "${{ env.PATCHES_DIR }}"/*999-rk3328-orangepi-r1-plus-lts-patch.patch
-              mv "${{ env.PATCHES_DIR }}" openwrt/patches
-              cd openwrt
-              git apply --ignore-whitespace patches/*.patch
-              rm -rf patches
-          fi
 
       - name: Load custom feeds
         run: |
@@ -158,7 +147,7 @@ jobs:
         uses: dev-drprasad/delete-older-releases@master
         if: env.UPLOAD_RELEASE == 'true' && !cancelled()
         with:
-          keep_latest: 3
+          keep_latest: 10
           delete_tags: true
           delete_tag_pattern: immortalwrt
         env:
