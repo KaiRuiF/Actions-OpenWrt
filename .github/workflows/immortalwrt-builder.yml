@@ -17,16 +17,16 @@ on:
   workflow_dispatch:
     inputs:
       branch_version:
-        description: '选择 ImmortalWrt 分支版本'
+        description: "选择 ImmortalWrt 分支版本"
         required: true
         type: choice
         options:
           - "24.10"
           - "23.05"
           - "21.02"
-        default: '24.10'
+        default: "24.10"
   schedule:
-    - cron: '0 16 1 * *'
+    - cron: "0 16 1 * *"
 
 env:
   REPO_URL: https://github.com/immortalwrt/immortalwrt
@@ -72,8 +72,8 @@ jobs:
       - name: Cache
         uses: klever1988/cachewrtbuild@main
         with:
-          ccache: 'true'
-          mixkey: 'armv8_immortalwrt-${{ env.BRANCH_VERSION }}'
+          ccache: "true"
+          mixkey: "armv8_immortalwrt-${{ env.BRANCH_VERSION }}"
           prefix: ${{ github.workspace }}/openwrt
 
       - name: Load custom feeds
@@ -82,13 +82,20 @@ jobs:
             echo "Using custom feeds configuration from $FEEDS_CONF..."
             mv $FEEDS_CONF openwrt/feeds.conf.default
           fi
-          
+
       - name: Update & Install feeds
         run: |
           cd openwrt
           ./scripts/feeds update -a
           rm -rf feeds/packages/lang/golang
-          git clone https://github.com/kenzok8/golang feeds/packages/lang/golang
+          BRANCH_VERSION="${{ env.BRANCH_VERSION }}"
+          case $BRANCH_VERSION in
+            "24.10") GOLANG_BRANCH="24.x" ;;
+            "23.05") GOLANG_BRANCH="23.x" ;;
+            "21.02") GOLANG_BRANCH="21.x" ;;
+            *) GOLANG_BRANCH="24.x" ;;  # 默认 fallback
+          esac
+          git clone https://github.com/sbwml/packages_lang_golang -b $GOLANG_BRANCH feeds/packages/lang/golang
           ./scripts/feeds install -a
 
       - name: Load custom configuration
@@ -145,7 +152,7 @@ jobs:
           echo "status=success" >> $GITHUB_OUTPUT
 
       - name: Upload firmware to release
-        uses: softprops/action-gh-release@v1  # Use a stable version
+        uses: softprops/action-gh-release@v1 # Use a stable version
         if: steps.tag.outputs.status == 'success' && !cancelled()
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -168,4 +175,4 @@ jobs:
           delete_tags: true
           delete_tag_pattern: immortalwrt
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKE }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
