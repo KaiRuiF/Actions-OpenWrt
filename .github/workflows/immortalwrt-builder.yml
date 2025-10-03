@@ -122,9 +122,14 @@ jobs:
         id: tag
         if: steps.compile.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true' && !cancelled()
         run: |
-          echo "release_tag=immortalwrt-$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_OUTPUT
+          cd openwrt
+          OPENWRT_VERSION=$(make -s version | awk '{print $2}')
+          cd ../..
+          echo "release_tag=immortalwrt-${OPENWRT_VERSION}-$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_OUTPUT
           touch release.txt
-          echo -e "✅ orangepi-r1-plus-lts \n 🍃 cpu频率:1.5G" >> release.txt
+          echo -e "✅ orangepi-r1-plus-lts" >> release.txt
+          echo -e "🍀 ImmortalWrt 版本: ${OPENWRT_VERSION}" >> release.txt
+          echo -e "🍃 cpu频率:1.5G" >> release.txt
           echo "status=success" >> $GITHUB_OUTPUT
 
       - name: Upload firmware to release
@@ -151,4 +156,4 @@ jobs:
           delete_tags: true
           delete_tag_pattern: immortalwrt
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKE }}
