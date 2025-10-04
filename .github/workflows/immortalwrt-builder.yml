@@ -98,6 +98,24 @@ jobs:
           git clone https://github.com/sbwml/packages_lang_golang -b $GOLANG_BRANCH feeds/packages/lang/golang
           ./scripts/feeds install -a
 
+      - name: Update v2ray-core to latest
+        run: |
+          cd openwrt
+          V2RAY_DIR="feeds/packages/net/v2ray-core"
+          if [ ! -d "$V2RAY_DIR" ]; then
+            echo "v2ray-core directory not found at $V2RAY_DIR. Check your feeds configuration."
+            exit 1
+          fi
+          LATEST_VERSION="5.39.0"
+          PKG_SOURCE_URL="https://github.com/v2fly/v2ray-core/archive/refs/tags/v${LATEST_VERSION}.tar.gz"
+          wget -O /tmp/v2ray.tar.gz "$PKG_SOURCE_URL"
+          PKG_HASH=$(sha256sum /tmp/v2ray.tar.gz | cut -d' ' -f1)
+          rm /tmp/v2ray.tar.gz
+          sed -i "s/PKG_VERSION:=.*/PKG_VERSION:=${LATEST_VERSION}/" ${V2RAY_DIR}/Makefile
+          sed -i "s|PKG_SOURCE_URL:=.*|PKG_SOURCE_URL:=${PKG_SOURCE_URL}|" ${V2RAY_DIR}/Makefile
+          sed -i "s/PKG_HASH:=.*/PKG_HASH:=${PKG_HASH}/" ${V2RAY_DIR}/Makefile
+          echo "Updated v2ray-core to v${LATEST_VERSION} with hash ${PKG_HASH}"
+
       - name: Load custom configuration
         run: |
           [ -e files ] && mv files openwrt/files
